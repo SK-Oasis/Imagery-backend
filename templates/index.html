@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<head>
+  <title>Imagery Simulator</title>
+  <link
+    rel="shortcut icon"
+    href="{{ url_for('static', filename='dog.png') }}"
+  />
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+</head>
+
+<body>
+  <img src="{{ url_for('static', filename='dog.png') }}" class="icon" />
+  <h3>Imagery Simulator</h3>
+  <form action="/command" method="post">
+    {% if results %}
+    <input type="text" name="command" placeholder="Enter an command" required />
+    <input type="submit" name="type" value="Submit" />
+    {% else %}
+    <input type="submit" name="type" value="Start" />
+    {% endif %}
+  </form>
+  <div class="result">
+  {% if results %}
+    {% for result in results %}
+      {% if result.role == "assistant" %}
+      <div class="line">
+        <span>HP : {{ result.content.HP }}</span>
+      </div>
+      <div class="line">
+        <span>{{ result.content.content }}</span>
+      </div>
+      <div class="line">
+        <span>A : {{ result.content.choices.a }} / B : {{ result.content.choices.b }} / C : {{ result.content.choices.c }}</span>
+      </div>
+      {% elif result.role == "user" %}
+      <div class="line mine">
+        <span>유저 커맨드 : {{ result.content }}</span>
+      </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  </div>
+</body>
