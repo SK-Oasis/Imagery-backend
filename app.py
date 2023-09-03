@@ -168,6 +168,22 @@ def command():
             return render_template("index.html", results=results)#redirect(url_for("index", results=results))#render_template("index.html", results=results)
     
 
+@app.route("/api/whisper", methods=['POST'])
+def get_transribe():
+    if 'file' not in request.files:
+        return 'No file part'
+
+    file = request.files['file']
+
+    if file:
+        file.save('uploaded_file.m4a')
+        print('File uploaded successfully')
+    response = openai.Audio.transcribe("whisper-1", file)
+    result = response["text"]
+    print(result)
+    return jsonify(result)
+
+
 @app.route("/api/getSubject", methods=['GET'])
 def api_get_subject():
     response = openai.ChatCompletion.create(
