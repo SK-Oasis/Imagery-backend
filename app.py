@@ -65,12 +65,16 @@ If the user asks a question other than the option, don't answer it, but ask them
     },
     "state": "playing"
 }'''
-    },
+    }
+    ]
+
+defaultStory = [
     {
         "role": "user",
         "content": "I want to play new game based on Apocalypse. Please describe it in detail like a novel. And when there is a change in hp, let me know with content. The background should only be written with a noun clause that describes the background and the picture that fits the user's behavior. And, background must be written in English.  The background may vary depending on the content. Please write everything in Korean except background. state should be either fail or success at the end of the story."
     }
-    ]
+]
+
 
 messages = {
     "A":[]
@@ -112,7 +116,7 @@ def command():
             #TODOS : https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb
             response = openai.ChatCompletion.create(
                 model = "gpt-3.5-turbo-0613",
-                messages = prompt + messages,
+                messages = prompt + defaultStory + messages,
                 temperature = 1,
                 #stream=True
             )
@@ -142,7 +146,7 @@ def command():
         else:
             response = openai.ChatCompletion.create(
                 model = "gpt-3.5-turbo-16k-0613",
-                messages = prompt + messages,
+                messages = prompt + defaultStory + messages,
                 temperature = 1,
             )
 
@@ -164,33 +168,61 @@ def command():
             return render_template("index.html", results=results)#redirect(url_for("index", results=results))#render_template("index.html", results=results)
     
 
-@app.route("/api/test", methods=['GET'])
-def api_test():
-    temp =[{
-        "id":1,
-        "hp":5,
-        "background": "The hero who appeared as a warrior in a fantasy world full of magic and monsters",
-        "theme":"story book, digital art",
-        "content":"안녕하세요! 이제부터 시작하는 모험 게임에 오신 것을 환영합니다. 이 게임은 여러분이 영웅이 되어 다양한 도전과 과제를 수행하는 것을 목표로 합니다. 게임 세계는 마법과 몬스터로 가득 찬 판타지 세계입니다. 여러분의 할일은 영웅의 역할을 맡아 세계를 구하는 것입니다. 어떻게 하시겠습니까?",
-        "choices":
-        {
-            "a":"모험을 시작한다!",
-            "b":"게임 규칙을 알려주세요.",
-            "c":"이 게임은 어떻게 진행되나요?"
-        },
-        "state":"playing"
-    }]
+@app.route("/api/getSubject", methods=['GET'])
+def api_get_subject():
+    response = openai.ChatCompletion.create(
+        model = "gpt-3.5-turbo-16k-0613",
+        messages = [{
+                        "role": "user",
+                        "content": "You are a machine that creates topics randomly. Let me know a good topic to make a story randomly. For example, you can answer as follows. After the fall, zombie incidents, space travel, volcanic eruptions. Write in Korean. Less than 30 characters."
+                    }],
+        temperature = 1,
+    )
 
-    return jsonify(temp)
+    result = response["choices"][0]["message"]["content"]
+    
+    return jsonify(result)
+
+def processOwnStory(story):
+    return f"I want to play new game based on story below. {story}. Please describe it in detail like a novel. And when there is a change in hp, let me know with content. The background should only be written with a noun clause that describes the background and the picture that fits the user's behavior. And, background must be written in English.  The background may vary depending on the content. Please write everything in Korean except background. state should be either fail or success at the end of the story."
+
+@app.route("/api/get_summary", methods=['POST'])
+def get_subject_summary():
+    print(request.args.get('ownStory'))
+    response = openai.ChatCompletion.create(
+        model = "gpt-3.5-turbo-16k-0613",
+        messages = [{
+                        "role": "user",
+                        "content": f"Summarize the following story in one noun phrase. Please make sure that this noun phrase does not exceed 8 characters in Korean. Story : {request.args.get('ownStory')}"
+                    }],
+        temperature = 1,
+    )
+
+    result = response["choices"][0]["message"]["content"]
+    print(result)
+    return jsonify(result)
+
 
 @app.route("/api/play", methods=['POST'])
 def api_play():
     json_verified = False
     userId = request.args.get("userId")
     command = request.args.get("command")
+
+    ownStory = request.args.get("ownStory")
     userId = "A"
     result = ""
-    if command:
+    story = defaultStory
+
+    if ownStory:
+        story = [
+            {
+                "role": "user",
+                "content" : processOwnStory(ownStory)
+            }
+        ]
+        messages[userId] = []
+    elif command:
         messages[userId].append(
             {
                 "role": "user",
@@ -200,10 +232,9 @@ def api_play():
 
     while(json_verified == False):
         try:
-
             response = openai.ChatCompletion.create(
                 model = "gpt-3.5-turbo-16k-0613",
-                messages = prompt + messages[userId],
+                messages = prompt + story + messages[userId],
                 temperature = 1,
             )
 
