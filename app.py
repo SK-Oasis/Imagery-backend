@@ -170,8 +170,9 @@ def command():
 
 @app.route("/api/whisper", methods=['POST'])
 def get_transribe():
+    print("yes")
     if 'file' not in request.files:
-        return 'No file part'
+        return jsonify('No file part')
 
     file = request.files['file']
 
