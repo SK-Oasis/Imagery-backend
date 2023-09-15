@@ -219,15 +219,15 @@ def get_subject_summary():
     print(result)
     return jsonify(result)
 
-
+finetune_system = []
 @app.route("/api/play", methods=['POST'])
 def api_play():
+    global finetune_system
     json_verified = False
-    userId = request.args.get("userId")
     command = request.args.get("command")
-
+    userId = request.args.get("deviceToken")
+    
     ownStory = request.args.get("ownStory")
-    userId = "A"
     result = ""
     story = defaultStory
 
@@ -246,7 +246,7 @@ def api_play():
                 "content" : command
             }
         )
-
+    
     while(json_verified == False):
         try:
             response = openai.ChatCompletion.create(
@@ -263,18 +263,43 @@ def api_play():
                 prompt = recent_data['background'] + ', ' + recent_data['theme'],
             )["data"][0]["url"]
 
-            data = {
-                'hp' : recent_data['hp'],
-                'dall' : imageURL,
-                'content' : recent_data['content'],
-                'state' : recent_data['state'],
-                'choices' : {
-                    'a' : recent_data['choices']['a'],
-                    'b' : recent_data['choices']['b'],
-                    'c' : recent_data['choices']['c']
+            if recent_data['state'] == "playing":
+                data = {
+                    'hp' : recent_data['hp'],
+                    'dall' : imageURL,
+                    'content' : recent_data['content'],
+                    'state' : recent_data['state'],
+                    'choices' : {
+                        'a' : recent_data['choices']['a'],
+                        'b' : recent_data['choices']['b'],
+                        'c' : recent_data['choices']['c']
+                    }
                 }
-            }
-            
+            else:
+                data = {
+                    'hp' : recent_data['hp'],
+                    'dall' : imageURL,
+                    'content' : recent_data['content'],
+                    'state' : recent_data['state'],
+                    'choices' : {
+                        'a' : "처음부터 다시 시작하기",
+                        'b' : "다른 이야기 소재로 시작하기",
+                        'c' : "홈으로 가기"
+                    }
+                }
+                
+            if response["usage"]["total_tokens"] > 15000:
+                data = {
+                    'hp' : 5,
+                    'dall' : 'https://www.apple.com/v/accessibility/r/images/overview/zoom__ed02ebgwj6gm_large_2x.jpg',
+                    'content' : '당신은 끝없는 이야기에서 살아남았습니다. 축하드립니다.',
+                    'state' : 'success',
+                    'choices' : {
+                        'a' : '처음부터 다시 시작',
+                        'b' : '새로운 이야기로 시작',
+                        'c' : '메인으로 가기'
+                    }
+                }
             json_verified = True
         except:
             json_verified = False
@@ -285,10 +310,27 @@ def api_play():
             "content" : result
         }
     )
-    
+    if ownStory:
+        finetune_system = [
+            {
+                "role": "system",
+                "content": "You are a story-writing game in Korean. Please respond according to the user input."
+            },
+            {
+                "role": "user",
+                "content": "Please start the game with the following theme. " + ownStory
+            }
+    ]
+    #
+    #for i in (finetune_system + messages[userId]):
+    #    print(i, end=',\n')
+    #print({"messages":finetune_system + messages[userId]})
     return jsonify(data)
 
 @app.route("/api/reset", methods=['GET','POST'])
 def api_reset():
-    messages['A'] = []
-    return True
+    userId = request.args.get("deviceToken")
+    print('reset')
+    print(userId)
+    messages[userId] = []
+    return jsonify(True)
